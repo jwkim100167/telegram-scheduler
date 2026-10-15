@@ -1,0 +1,45 @@
+name: Weekly Collect & Aggregate
+
+on:
+  schedule:
+    - cron: "0 12 * * 0"   # 매주 일요일 21:00 KST (12:00 UTC)
+  workflow_dispatch:         # 수동 실행 버튼
+
+jobs:
+  collect-and-aggregate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install feedparser requests supabase python-dotenv pdfplumber
+
+      - name: Collect (DART)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: python -m collector.main collect
+
+      - name: Aggregate (weekly)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+        run: python -m collector.main aggregate
+
+      - name: Fetch sector returns
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python -m collector.main fetch-prices 4
+
+      - name: Fetch benchmark returns (KOSPI200 / KOSDAQ150)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python -m collector.main fetch-benchmarks 4
